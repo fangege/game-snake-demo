@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>贪食蛇游戏</title>
+    <style>
+        #gameCanvas {
+            border: 1px solid black;
+        }
+    </style>
+</head>
+
+<body>
+    <button id="startButton">开始游戏</button>
+    <button id="endButton">结束游戏</button>
+    <br>
+    <canvas id="gameCanvas" width="1000" height="1000"></canvas>
+
+
+    <script>
+        // 获取画布和上下文
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let gameLoopInterval = setInterval(gameLoop, 200);; // 用于存储游戏循环的 setInterval 返回值
+
+        let gameState = {
+            player1: {},
+            player2: {},
+            food: {},
+            gameStartTime: 0,
+            turn: 0,
+        }
+
+        // 监听键盘按键事件
+        document.addEventListener('keydown', handleKeyPress);
+
+        async function handleKeyPress(event) {
+            let response = await fetch('/event', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ type: 'keyboard', key: event.key})
+            })
+            if (!response.ok) {
+                console.log("end failed")
+            }
+        }
+
+        // 游戏循环
+        async function gameLoop() {
+            let response = await fetch('/state', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            })
+            if (!response.ok) {
+                console.log("state failed")
+                return
+            }
+            gameState = await response.json()
+            // 清空画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            let player1 = gameState.player1
+            let player2 = gameState.player2
+            drawSnake(player1, 'green');
+            drawSnake(player2, 'blue');
+            drawFood();
+        }
+
+        // 更新贪食蛇位置
+        function updateSnake(player) {
+
+            // 更新蛇身
+            player.tail.unshift({ x: player.x, y: player.y });
+            if (player.tail.length > 5) {
+                player.tail.pop();
+            }
+            // 更新蛇头位置
+            if (player.direction === 'up') {
+                player.y -= player.speed;
+            } else if (player.direction === 'down') {
+                player.y += player.speed;
+            } else if (player.direction === 'left') {
+                player.x -= player.speed;
+            } else if (player.direction === 'right') {
+                player.x += player.speed;
+            }
+
+            // 边界检测
+            if (player.x < 0 || player.x >= canvas.width || player.y < 0 || player.y >= canvas.height) {
+                player.direction = 'stop';
+            }
+        }
+
+        // 绘制贪食蛇
+        function drawSnake(player, color) {
+            // 绘制蛇身
+            ctx.fillStyle = color;
+            for (let i = 0; i < player.tail.length; i++) {
+                ctx.fillRect(player.tail[i].x, player.tail[i].y, 10, 10);
+            }
+
+            // 绘制蛇头
+            ctx.fillRect(player.x, player.y, 10, 10);
+        }
+
+        // 绘制食物
+        function drawFood() {
+            let food = gameState.food
+
+            ctx.fillStyle = 'red';
+            ctx.fillRect(food.x, food.y, 10, 10);
+        }
+
+
+
+        // 启动游戏循环
+        async function startGame() {
+            let response = await fetch('/event', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ type: 'start' })
+            })
+            if (!response.ok) {
+                console.log("start failed")
+            }
+        }
+
+        // 结束游戏
+        async function endGame() {
+            let response = await fetch('/event', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ type: 'end' })
+            })
+            if (!response.ok) {
+                console.log("end failed")
+            }
+        }
+        // 监听开始游戏按钮点击事件
+        document.getElementById('startButton').addEventListener('click', startGame);
+        // 监听结束游戏按钮点击事件
+        document.getElementById('endButton').addEventListener('click', endGame);
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>贪食蛇游戏</title>
+    <style>
+        #gameCanvas {
+            border: 1px solid black;
+        }
+    </style>
+</head>
+
+<body>
+    <button id="startButton">开始游戏</button>
+    <button id="endButton">结束游戏</button>
+    <br>
+    <canvas id="gameCanvas" width="1000" height="1000"></canvas>
+
+
+    <script>
+         //只能使用伪随机算法
+        const randomList = [0.6457614593058985,0.021239683333431403,0.4338212978069593,0.5553824772589573,0.43778867330179416,0.670412103469511,0.9484783604236509,0.1627678204173475,0.05265591578593831,0.8307270931462138,0.878738787558567,0.16782022950405717,0.0035376301474401295,0.7327115021243849,0.38730118811391323,0.6463839401509841,0.6762667201709476,0.903151385170218,0.691725609474743,0.557179790229374,0.8776575173716168,0.03155438886956552,0.46453364115952,0.19235292811647775,0.46543862714946815,0.6079389889368252,0.7877724343781973,0.40149369312522265,0.10331984845154008,0.3267189483604298,0.9127175363083675,0.03597863912313848,0.8462046646501455,0.24069379830922477,0.8550550042897758,0.9056587222217598,0.8743513687090931,0.15660429750842164,0.7879525713896984,0.6096978772932449,0.8031486981661207,0.8222776069577422,0.07535660840485692,0.1504294757190805,0.7090052963637576,0.5099374137514534,0.18418193989153542,0.23341269345377125,0.8283739988514247,0.7665567602632075,0.24027194719974188,0.22507891065083174,0.6823539336656845,0.9162206043208669,0.28279769992262227,0.22393221954518117,0.5695042465773559,0.17228001566087103,0.5490074387527264,0.7903246184645085,0.19038813858801262,0.03733896621365762,0.7164612479251711,0.7865588030522253,0.3861237694203472,0.6527052776762687,0.5777618094123291,0.4792662031516741,0.052432643346600694,0.7151335183585787,0.5994882746718495,0.7676322361975352,0.6466433966740983,0.35340216543637104,0.8714610491489776,0.5005488420196735,0.7301622507223742,0.8258480921554916,0.27463331064658325,0.9007199349312593,0.6555566820480498,0.592012624621985,0.30601936487780756,0.11906251667078127,0.011295357154734731,0.938043227763435,0.6446102074160971,0.9996254047181068,0.6560450778649971,0.4887457066429217,0.31292206559582625,0.9957859310927433,0.04888649399071232,0.7775929223138129,0.6469964302130793,0.3422190198512116,0.5288569281573765,0.7700812918426787,0.7518482814742158,0.9554618530747399]
+        let randomIndex = 0
+        function getRandom(){
+           if(randomIndex == randomList.length){
+               randomIndex = 0
+           }
+           randomIndex ++
+           return randomList[randomIndex-1]
+        }
+
+
+        // 获取画布和上下文
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let gameLoopInterval; // 用于存储游戏循环的 setInterval 返回值
+
+        let gameState = {
+            player1: {},
+            player2: {},
+            food: {},
+            gameStartTime: 0,
+            turn: 0,
+            turn_event_list:[]
+        }
+
+        function initGameData() {
+            gameState.player1 = {
+                x: 0,
+                y: 0,
+                speed: 10,
+                direction: 'right',
+                tail: [],
+                score: 0,
+            };
+            gameState.player2 = {
+                x: 200,
+                y: 200,
+                speed: 10,
+                direction: 'left',
+                tail: [],
+                score: 0,
+            };
+            gameState.food = {
+                x: canvas.width / 2,
+                y: canvas.height / 2,
+            };
+            gameState.turn_event_list = []
+            randomIndex=0
+        }
+        // 监听键盘按键事件
+        document.addEventListener('keydown', handleKeyPress);
+        async function handleKeyPress(event) {
+            let response = await fetch('/event', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ type: 'keyboard', key: event.key })
+            })
+            if (!response.ok) {
+                console.log("end failed")
+            }
+        }
+
+        function handleKey(event, player) {
+            let player1 = gameState[player]
+            if (event.key === 'w' && player1.direction !== 'down') {
+                player1.direction = 'up';
+            } else if (event.key === 's' && player1.direction !== 'up') {
+                player1.direction = 'down';
+            } else if (event.key === 'a' && player1.direction !== 'right') {
+                player1.direction = 'left';
+            } else if (event.key === 'd' && player1.direction !== 'left') {
+                player1.direction = 'right';
+            }
+        }
+
+        // 游戏循环
+        async function gameLoop() {
+            //请求后台获取turn数据
+            let response = await fetch('/state', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ turn: gameState.turn })
+            })
+            if (!response.ok) {
+                console.log("state failed")
+                return
+            }
+            let resJson = await response.json()
+            if (resJson["result"].length === 0) {
+                return
+            }
+            for (let turn of resJson["result"]) {
+                if(turn.turn <= gameState.turn){
+                    continue
+                }
+                let eventOfPlayer1 = turn['event']['player1']
+                if (eventOfPlayer1 != undefined) {
+                    handleKey(eventOfPlayer1, "player1")
+                }
+                let eventOfPlayer2 = turn['event']['player2']
+                if (eventOfPlayer2 != undefined) {
+                    handleKey(eventOfPlayer2, "player2")
+                }
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                let player1 = gameState.player1
+                let player2 = gameState.player2
+                // 更新贪食蛇位置
+                updateSnake(player1);
+                updateSnake(player2);
+
+                // 绘制贪食蛇
+                drawSnake(player1, 'green');
+                drawSnake(player2, 'blue');
+
+                // 绘制食物
+                drawFood();
+
+                // 检测是否吃到食物
+                checkFoodCollision(player1);
+                checkFoodCollision(player2);
+                gameState.turn = turn.turn
+                gameState.turn_event_list.push(turn)
+            }
+        }
+
+        // 更新贪食蛇位置
+        function updateSnake(player) {
+            // 更新蛇身
+            player.tail.unshift({ x: player.x, y: player.y });
+            if (player.tail.length > 5) {
+                player.tail.pop();
+            }
+
+            // 更新蛇头位置
+            if (player.direction === 'up') {
+                player.y -= player.speed;
+            } else if (player.direction === 'down') {
+                player.y += player.speed;
+            } else if (player.direction === 'left') {
+                player.x -= player.speed;
+            } else if (player.direction === 'right') {
+                player.x += player.speed;
+            }
+
+            // 边界检测
+            if (player.x < 0 || player.x >= canvas.width || player.y < 0 || player.y >= canvas.height) {
+                player.direction = 'stop';
+            }
+        }
+
+        // 绘制贪食蛇
+        function drawSnake(player, color) {
+            // 绘制蛇身
+            ctx.fillStyle = color;
+            for (let i = 0; i < player.tail.length; i++) {
+                ctx.fillRect(player.tail[i].x, player.tail[i].y, 10, 10);
+            }
+
+            // 绘制蛇头
+            ctx.fillRect(player.x, player.y, 10, 10);
+        }
+
+        // 绘制食物
+        function drawFood() {
+            let food = gameState.food
+
+            ctx.fillStyle = 'red';
+            ctx.fillRect(food.x, food.y, 10, 10);
+        }
+
+        // 检测是否吃到食物
+        function checkFoodCollision(player) {
+            let food = gameState.food
+            if (player.x === food.x && player.y === food.y) {
+                player.score++
+                // 吃到食物后，随机生成新的食物位置
+                food.x = Math.floor(getRandom() * (canvas.width / 10)) * 10;
+                food.y = Math.floor(getRandom() * (canvas.height / 10)) * 10;
+                // 增加贪食蛇的长度
+                player.tail.push({ x: player.x, y: player.y });
+            }
+        }
+
+        // 启动游戏循环
+        // 启动游戏循环
+        async function startGame() {
+            let response = await fetch('/event', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ type: 'start' })
+            })
+            if (!response.ok) {
+                console.log("start failed")
+            }
+            gameLoopInterval = setInterval(gameLoop, 200);; // 用于存储游戏循环的 setInterval 返回值
+            initGameData()
+        }
+
+        // 结束游戏
+        async function endGame() {
+            let response = await fetch('/event', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ type: 'end' })
+            })
+            if (!response.ok) {
+                console.log("end failed")
+            }
+             clearInterval(gameLoopInterval)
+        for(let turn of gameState.turn_event_list){
+            if(turn.event.length!=0){
+                console.log(JSON.stringify(turn.event))
+            }
+        }
+             initGameData()
+
+        }
+        // 监听开始游戏按钮点击事件
+        document.getElementById('startButton').addEventListener('click', startGame);
+        // 监听结束游戏按钮点击事件
+        document.getElementById('endButton').addEventListener('click', endGame);
+    </script>
+</body>
+
+</html>

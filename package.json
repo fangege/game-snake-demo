@@ -1,0 +1,16 @@
+{
+  "name": "game-snake-demo",
+  "version": "1.0.0",
+  "description": "```html\r <!DOCTYPE html>\r <html>\r <head>\r     <title>贪食蛇游戏</title>\r     <style>\r         #gameCanvas {\r             border: 1px solid black;\r         }\r     </style>\r </head>\r <body>\r <button id=\"startButton\">开始游戏</button>\r <button id=\"endButton\">结束游戏</button>\r <br>\r <canvas id=\"gameCanvas\" width=\"1000\" height=\"1000\"></canvas>",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cookie-parser": "^1.4.6",
+    "ejs": "^3.1.9",
+    "express": "^4.18.2"
+  }
+}
