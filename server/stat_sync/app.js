@@ -14,14 +14,23 @@ app.get('/snake', (req, res) => {
 
 // 使用express.json()中间件来解析JSON数据
 app.use(express.json());
-
 let gameLoopInterval; // 用于存储游戏循环的 setInterval 返回值
-
-
 let canvas = {
     width:1000,
     height: 1000,
 }
+const CNT_Direct = (function() {
+    const UP = 'UP';
+    const DOWN = 'DOWN';
+    const LEFT = 'LEFT';
+    const RIGHT = 'RIGHT';
+    return {
+        UP,
+        DOWN,
+        LEFT,
+        RIGHT,
+    };
+})();
 
 
 let gameState = {
@@ -36,7 +45,7 @@ function initGameData(){
         x: 0,
         y: 0,
         speed: 10,
-        direction: 'right',
+        direction: CNT_Direct.RIGHT,
         tail: [],
         score: 0,
     };
@@ -44,7 +53,7 @@ function initGameData(){
         x: 200,
         y: 200,
         speed: 10,
-        direction: 'left',
+        direction: CNT_Direct.LEFT,
         tail: [],
         score: 0,
     };
@@ -63,19 +72,28 @@ function updateSnake(player) {
     }
 
     // 更新蛇头位置
-    if (player.direction === 'up') {
+    if (player.direction === CNT_Direct.UP) {
         player.y -= player.speed;
-    } else if (player.direction === 'down') {
+    } else if (player.direction === CNT_Direct.DOWN) {
         player.y += player.speed;
-    } else if (player.direction === 'left') {
+    } else if (player.direction === CNT_Direct.LEFT) {
         player.x -= player.speed;
-    } else if (player.direction === 'right') {
+    } else if (player.direction === CNT_Direct.RIGHT) {
         player.x += player.speed;
     }
 
     // 边界检测
-    if (player.x < 0 || player.x >= canvas.width || player.y < 0 || player.y >= canvas.height) {
-        player.direction = 'stop';
+    if(player.x < 0 ) {
+        player.direction = CNT_Direct.RIGHT
+    }
+    if(player.x >= canvas.width ) {
+        player.direction = CNT_Direct.LEFT
+    }
+    if(player.y < 0 ) {
+        player.direction = CNT_Direct.DOWN
+    }
+    if(player.y >= canvas.height ) {
+        player.direction = CNT_Direct.UP
     }
 }
 
@@ -108,14 +126,14 @@ function handleKeyPress(event,player) {
     if(player1 === undefined){
         return
     }
-    if (event.key === 'w' && player1.direction !== 'down') {
-        player1.direction = 'up';
-    } else if (event.key === 's' && player1.direction !== 'up') {
-        player1.direction = 'down';
-    } else if (event.key === 'a' && player1.direction !== 'right') {
-        player1.direction = 'left';
-    } else if (event.key === 'd' && player1.direction !== 'left') {
-        player1.direction = 'right';
+    if (event.key === 'w' && player1.direction !== CNT_Direct.DOWN) {
+        player1.direction = CNT_Direct.UP;
+    } else if (event.key === 's' && player1.direction !== CNT_Direct.UP) {
+        player1.direction = CNT_Direct.DOWN;
+    } else if (event.key === 'a' && player1.direction !== CNT_Direct.RIGHT) {
+        player1.direction = CNT_Direct.LEFT;
+    } else if (event.key === 'd' && player1.direction !== CNT_Direct.LEFT) {
+        player1.direction = CNT_Direct.RIGHT;
     }
 }
 

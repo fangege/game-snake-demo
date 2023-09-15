@@ -3,7 +3,6 @@ const app = express();
 const port = 3000;
 const cookieParser = require('cookie-parser');
 app.use(cookieParser());
-
 app.set('views', __dirname);
 app.set('view engine', 'ejs');
 app.get('/snake', (req, res) => {
@@ -16,8 +15,6 @@ app.get('/snake', (req, res) => {
 app.use(express.json());
 
 let gameLoopInterval; // 用于存储游戏循环的 setInterval 返回值
-
-
 let gameState = {
     gameStartTime:0,
     gameEndTime:0,
@@ -52,7 +49,7 @@ app.post('/event', (req, res) => {
         gameState.gameEndTime = new Date().getMilliseconds()
 
         for(let turn of gameState.turn_event_list){
-            if(turn.event.length!=0){
+            if(turn.event.length!==0){
                 console.log(JSON.stringify(turn.event))
             }
         }

@@ -72,30 +72,6 @@
         }
 
         // 更新贪食蛇位置
-        function updateSnake(player) {
-
-            // 更新蛇身
-            player.tail.unshift({ x: player.x, y: player.y });
-            if (player.tail.length > 5) {
-                player.tail.pop();
-            }
-            // 更新蛇头位置
-            if (player.direction === 'up') {
-                player.y -= player.speed;
-            } else if (player.direction === 'down') {
-                player.y += player.speed;
-            } else if (player.direction === 'left') {
-                player.x -= player.speed;
-            } else if (player.direction === 'right') {
-                player.x += player.speed;
-            }
-
-            // 边界检测
-            if (player.x < 0 || player.x >= canvas.width || player.y < 0 || player.y >= canvas.height) {
-                player.direction = 'stop';
-            }
-        }
-
         // 绘制贪食蛇
         function drawSnake(player, color) {
             // 绘制蛇身
@@ -103,7 +79,6 @@
             for (let i = 0; i < player.tail.length; i++) {
                 ctx.fillRect(player.tail[i].x, player.tail[i].y, 10, 10);
             }
-
             // 绘制蛇头
             ctx.fillRect(player.x, player.y, 10, 10);
         }

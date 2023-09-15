@@ -16,6 +16,21 @@
 
 
 <script>
+
+    const CNT_Direct = (function() {
+        const UP = 'UP';
+        const DOWN = 'DOWN';
+        const LEFT = 'LEFT';
+        const RIGHT = 'RIGHT';
+        return {
+            UP,
+            DOWN,
+            LEFT,
+            RIGHT,
+        };
+    })();
+
+
     // 获取画布和上下文
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
@@ -29,15 +44,12 @@
         turn:0,
     }
 
-
-
-
     function initGameData(){
         gameState.player1 = {
             x: 0,
             y: 0,
             speed: 10,
-            direction: 'right',
+            direction: CNT_Direct.RIGHT,
             tail: [],
             score: 0,
         };
@@ -45,7 +57,7 @@
             x: 200,
             y: 200,
             speed: 10,
-            direction: 'left',
+            direction: CNT_Direct.LEFT,
             tail: [],
             score: 0,
         };
@@ -54,33 +66,28 @@
             y: Math.floor(Math.random() * (canvas.height / 10)) * 10
         };
     }
-
-
     // 监听键盘按键事件
     document.addEventListener('keydown', handleKeyPress);
-
     function handleKeyPress(event) {
         let player1 = gameState.player1
         let player2 = gameState.player2
-        if (event.key === 'w' && player1.direction !== 'down') {
-            player1.direction = 'up';
-        } else if (event.key === 's' && player1.direction !== 'up') {
-            player1.direction = 'down';
-        } else if (event.key === 'a' && player1.direction !== 'right') {
-            player1.direction = 'left';
-        } else if (event.key === 'd' && player1.direction !== 'left') {
-            player1.direction = 'right';
+        if (event.key === 'w' && player1.direction !== CNT_Direct.DOWN) {
+            player1.direction = CNT_Direct.UP;
+        } else if (event.key === 's' && player1.direction !== CNT_Direct.UP) {
+            player1.direction = CNT_Direct.DOWN;
+        } else if (event.key === 'a' && player1.direction !== CNT_Direct.RIGHT) {
+            player1.direction = CNT_Direct.LEFT;
+        } else if (event.key === 'd' && player1.direction !== CNT_Direct.LEFT) {
+            player1.direction = CNT_Direct.RIGHT;
         }
-
-
-        if (event.key === 'ArrowUp' && player2.direction !== 'down') {
-            player2.direction = 'up';
-        } else if (event.key === 'ArrowDown' && player2.direction !== 'up') {
-            player2.direction = 'down';
-        } else if (event.key === 'ArrowLeft' && player2.direction !== 'right') {
-            player2.direction = 'left';
-        } else if (event.key === 'ArrowRight' && player2.direction !== 'left') {
-            player2.direction = 'right';
+        if (event.key === 'ArrowUp' && player2.direction !== CNT_Direct.DOWN) {
+            player2.direction = CNT_Direct.UP;
+        } else if (event.key === 'ArrowDown' && player2.direction !== CNT_Direct.UP) {
+            player2.direction = CNT_Direct.DOWN;
+        } else if (event.key === 'ArrowLeft' && player2.direction !== CNT_Direct.RIGHT) {
+            player2.direction = CNT_Direct.LEFT;
+        } else if (event.key === 'ArrowRight' && player2.direction !== CNT_Direct.LEFT) {
+            player2.direction = CNT_Direct.RIGHT;
         }
     }
 
@@ -105,7 +112,7 @@
         // 检测是否吃到食物
         checkFoodCollision(player1);
         checkFoodCollision(player2);
-        turn ++;
+        gameState.turn ++;
     }
 
     // 更新贪食蛇位置
@@ -115,21 +122,27 @@
         if (player.tail.length > 5) {
             player.tail.pop();
         }
-
         // 更新蛇头位置
-        if (player.direction === 'up') {
+        if (player.direction === CNT_Direct.UP) {
             player.y -= player.speed;
-        } else if (player.direction === 'down') {
+        } else if (player.direction === CNT_Direct.DOWN) {
             player.y += player.speed;
-        } else if (player.direction === 'left') {
+        } else if (player.direction === CNT_Direct.LEFT) {
             player.x -= player.speed;
-        } else if (player.direction === 'right') {
+        } else if (player.direction === CNT_Direct.RIGHT) {
             player.x += player.speed;
         }
-
-        // 边界检测
-        if (player.x < 0 || player.x >= canvas.width || player.y < 0 || player.y >= canvas.height) {
-            player.direction = 'stop';
+        if(player.x < 0 ) {
+            player.direction = CNT_Direct.RIGHT
+        }
+        if(player.x >= canvas.width ) {
+            player.direction = CNT_Direct.LEFT
+        }
+        if(player.y < 0 ) {
+            player.direction = CNT_Direct.DOWN
+        }
+        if(player.y >= canvas.height ) {
+            player.direction = CNT_Direct.UP
         }
     }
 

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WebSocket示例</title>
+</head>
+<body>
+  <h1>WebSocket示例</h1>
+
+  <script>
+    // 创建WebSocket连接
+    const socket = new WebSocket('ws://localhost:3000');
+
+    // 处理连接成功的事件
+    socket.onopen = function(event) {
+      console.log('WebSocket连接已建立');
+    };
+
+    // 处理接收到的消息
+    socket.onmessage = function(event) {
+      console.log('接收到消息:', event.data);
+    };
+
+    // 处理连接关闭的事件
+    socket.onclose = function(event) {
+      console.log('WebSocket连接已关闭');
+    };
+
+    // 发送消息
+    function sendMessage() {
+      const message = document.getElementById('message').value;
+      socket.send(message);
+    }
+  </script>
+
+  <input type="text" id="message" placeholder="输入消息">
+  <button onclick="sendMessage()">发送</button>
+</body>
+</html>
