@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>坦克大战 - 客户端预测版</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #2c3e50;
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+        
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .game-header {
+            text-align: center;
+        }
+        
+        .game-header h1 {
+            margin: 0;
+            color: #e74c3c;
+        }
+        
+        .connection-status {
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .connected {
+            background-color: #27ae60;
+        }
+        
+        .disconnected {
+            background-color: #e74c3c;
+        }
+        
+        .waiting {
+            background-color: #f39c12;
+        }
+        
+        .game-info {
+            display: flex;
+            gap: 40px;
+            margin-bottom: 10px;
+        }
+        
+        .player-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .health-bar {
+            width: 100px;
+            height: 10px;
+            background-color: #34495e;
+            border: 1px solid #7f8c8d;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .health-fill {
+            height: 100%;
+            background-color: #27ae60;
+            transition: width 0.3s ease;
+        }
+        
+        .health-fill.low {
+            background-color: #e74c3c;
+        }
+        
+        #gameCanvas {
+            border: 3px solid #34495e;
+            background-color: #1a252f;
+            border-radius: 5px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 40px;
+            text-align: center;
+            font-size: 14px;
+        }
+        
+        .control-group h3 {
+            margin: 0 0 10px 0;
+            color: #3498db;
+        }
+        
+        .control-group p {
+            margin: 5px 0;
+        }
+        
+        .debug-panel {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 12px;
+            min-width: 200px;
+        }
+        
+        .debug-panel h4 {
+            margin: 0 0 10px 0;
+            color: #3498db;
+        }
+        
+        .debug-item {
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.9);
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+        }
+        
+        .game-over h2 {
+            margin: 0 0 20px 0;
+            color: #e74c3c;
+        }
+        
+        .restart-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .restart-btn:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1>坦克大战 - 客户端预测版</h1>
+            <div class="connection-status" id="connectionStatus">连接中...</div>
+            <div class="game-info" id="gameInfo" style="display: none;">
+                <div class="player-info">
+                    <h3 id="player1Name">玩家1</h3>
+                    <div class="health-bar">
+                        <div class="health-fill" id="player1Health"></div>
+                    </div>
+                    <span id="player1Score">得分: 0</span>
+                </div>
+                <div class="player-info">
+                    <h3 id="player2Name">玩家2</h3>
+                    <div class="health-bar">
+                        <div class="health-fill" id="player2Health"></div>
+                    </div>
+                    <span id="player2Score">得分: 0</span>
+                </div>
+            </div>
+        </div>
+        
+        <canvas id="gameCanvas" width="800" height="600" style="display: none;"></canvas>
+        
+        <div class="controls" id="controls" style="display: none;">
+            <div class="control-group">
+                <h3>控制说明</h3>
+                <p>W/S: 前进/后退</p>
+                <p>A/D: 左转/右转</p>
+                <p>空格: 射击</p>
+            </div>
+            <div class="control-group">
+                <h3>网络同步技术</h3>
+                <p>✓ 客户端预测</p>
+                <p>✓ 服务端校正</p>
+                <p>✓ 延迟补偿</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="debug-panel" id="debugPanel">
+        <h4>调试信息</h4>
+        <div class="debug-item">
+            <span>延迟:</span>
+            <span id="latency">-- ms</span>
+        </div>
+        <div class="debug-item">
+            <span>FPS:</span>
+            <span id="fps">--</span>
+        </div>
+        <div class="debug-item">
+            <span>预测校正:</span>
+            <span id="corrections">0</span>
+        </div>
+        <div class="debug-item">
+            <span>输入序列:</span>
+            <span id="inputSequence">0</span>
+        </div>
+        <div class="debug-item">
+            <span>服务端时差:</span>
+            <span id="timeOffset">-- ms</span>
+        </div>
+    </div>
+    
+    <div class="game-over" id="gameOver">
+        <h2 id="winnerText">游戏结束</h2>
+        <button class="restart-btn" onclick="location.reload()">重新开始</button>
+    </div>
+
+    <script>
+        // 游戏配置（从服务端接收）
+        let CONFIG = {};
+        
+        // 网络连接
+        let ws = null;
+        let connectionState = 'connecting';
+        
+        // 玩家信息
+        let myPlayerId = null;
+        let myPlayerNumber = null;
+        let players = {};
+        
+        // 游戏状态
+        let gameState = {
+            running: false,
+            players: {},
+            bullets: []
+        };
+        
+        // 客户端预测系统
+        let predictionSystem = {
+            inputSequence: 0,
+            inputHistory: [],
+            stateHistory: [],
+            pendingInputs: new Map(),
+            corrections: 0,
+            serverTimeOffset: 0
+        };
+        
+        // 输入状态
+        let inputState = {
+            forward: false,
+            backward: false,
+            turnLeft: false,
+            turnRight: false,
+            fire: false
+        };
+        
+        // 渲染系统
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 性能监控
+        let performanceMonitor = {
+            lastTime: 0,
+            frameCount: 0,
+            fps: 0,
+            latency: 0
+        };
+
+        // 初始化WebSocket连接
+        function initWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}`;
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                console.log('WebSocket连接已建立');
+                updateConnectionStatus('connected', '已连接');
+            };
+            
+            ws.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    handleServerMessage(message);
+                } catch (error) {
+                    console.error('解析服务端消息失败:', error);
+                }
+            };
+            
+            ws.onclose = () => {
+                console.log('WebSocket连接已关闭');
+                updateConnectionStatus('disconnected', '连接断开');
+                setTimeout(initWebSocket, 3000); // 3秒后重连
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket错误:', error);
+                updateConnectionStatus('disconnected', '连接错误');
+            };
+        }
+
+        // 处理服务端消息
+        function handleServerMessage(message) {
+            switch (message.type) {
+                case 'init':
+                    handleInit(message);
+                    break;
+                case 'game_start':
+                    handleGameStart(message);
+                    break;
+                case 'state_update':
+                    handleStateUpdate(message);
+                    break;
+                case 'input_confirm':
+                    handleInputConfirm(message);
+                    break;
+                case 'game_end':
+                    handleGameEnd(message);
+                    break;
+                case 'pong':
+                    handlePong(message);
+                    break;
+                case 'player_joined':
+                    console.log('玩家加入:', message.playerId);
+                    break;
+                case 'player_left':
+                    console.log('玩家离开:', message.playerId);
+                    break;
+                case 'error':
+                    console.error('服务端错误:', message.message);
+                    break;
+                default:
+                    console.log('未知消息类型:', message.type);
+            }
+        }
+
+        // 处理初始化消息
+        function handleInit(message) {
+            myPlayerId = message.playerId;
+            myPlayerNumber = message.playerNumber;
+            CONFIG = message.config;
+            
+            console.log(`初始化完成，玩家ID: ${myPlayerId}, 玩家编号: ${myPlayerNumber}`);
+            updateConnectionStatus('waiting', '等待其他玩家...');
+        }
+
+        // 处理游戏开始
+        function handleGameStart(message) {
+            gameState = message.gameState;
+            players = gameState.players;
+            
+            // 显示游戏界面
+            document.getElementById('gameInfo').style.display = 'flex';
+            document.getElementById('gameCanvas').style.display = 'block';
+            document.getElementById('controls').style.display = 'flex';
+            
+            updateConnectionStatus('connected', '游戏进行中');
+            
+            // 开始游戏循环
+            requestAnimationFrame(gameLoop);
+            
+            console.log('游戏开始！');
+        }
+
+        // 处理状态更新
+        function handleStateUpdate(message) {
+            const serverState = message.gameState;
+            const serverTime = message.serverTime;
+            
+            // 更新服务端时间偏移
+            predictionSystem.serverTimeOffset = Date.now() - serverTime;
+            
+            // 进行状态校正
+            reconcileWithServer(serverState);
+            
+            // 更新游戏状态
+            gameState = serverState;
+            players = gameState.players;
+        }
+
+        // 处理输入确认
+        function handleInputConfirm(message) {
+            const sequence = message.sequence;
+            predictionSystem.pendingInputs.delete(sequence);
+            
+            // 如果有校正状态，应用校正
+            if (message.correctedState) {
+                console.log('收到状态校正');
+                predictionSystem.corrections++;
+                // 这里可以实现更精确的状态校正逻辑
+            }
+        }
+
+        // 处理游戏结束
+        function handleGameEnd(message) {
+            gameState.running = false;
+            const winner = message.winner;
+            
+            let winnerText = '';
+            if (winner.winnerId === myPlayerId) {
+                winnerText = '你获胜了！';
+            } else {
+                winnerText = '你失败了！';
+            }
+            
+            document.getElementById('winnerText').textContent = winnerText;
+            document.getElementById('gameOver').style.display = 'block';
+        }
+
+        // 处理延迟测试响应
+        function handlePong(message) {
+            const latency = Date.now() - message.clientTime;
+            performanceMonitor.latency = latency;
+        }
+
+        // 客户端预测系统
+        function predictLocalState(input, deltaTime) {
+            if (!gameState.players[myPlayerId]) return;
+            
+            const myTank = gameState.players[myPlayerId];
+            const predictedTank = { ...myTank };
+            
+            // 预测移动
+            if (input.forward) {
+                const newX = predictedTank.x + Math.cos(predictedTank.angle) * CONFIG.TANK_SPEED;
+                const newY = predictedTank.y + Math.sin(predictedTank.angle) * CONFIG.TANK_SPEED;
+                
+                if (newX >= CONFIG.TANK_SIZE/2 && newX <= CONFIG.CANVAS_WIDTH - CONFIG.TANK_SIZE/2) {
+                    predictedTank.x = newX;
+                }
+                if (newY >= CONFIG.TANK_SIZE/2 && newY <= CONFIG.CANVAS_HEIGHT - CONFIG.TANK_SIZE/2) {
+                    predictedTank.y = newY;
+                }
+            }
+            
+            if (input.backward) {
+                const newX = predictedTank.x - Math.cos(predictedTank.angle) * CONFIG.TANK_SPEED * 0.7;
+                const newY = predictedTank.y - Math.sin(predictedTank.angle) * CONFIG.TANK_SPEED * 0.7;
+                
+                if (newX >= CONFIG.TANK_SIZE/2 && newX <= CONFIG.CANVAS_WIDTH - CONFIG.TANK_SIZE/2) {
+                    predictedTank.x = newX;
+                }
+                if (newY >= CONFIG.TANK_SIZE/2 && newY <= CONFIG.CANVAS_HEIGHT - CONFIG.TANK_SIZE/2) {
+                    predictedTank.y = newY;
+                }
+            }
+
+            // 预测旋转
+            if (input.turnLeft) {
+                predictedTank.angle -= CONFIG.TANK_TURN_SPEED;
+            }
+            if (input.turnRight) {
+                predictedTank.angle += CONFIG.TANK_TURN_SPEED;
+            }
+            
+            // 更新本地状态
+            gameState.players[myPlayerId] = predictedTank;
+        }
+
+        // 服务端状态校正
+        function reconcileWithServer(serverState) {
+            if (!serverState.players[myPlayerId] || !gameState.players[myPlayerId]) return;
+            
+            const serverTank = serverState.players[myPlayerId];
+            const localTank = gameState.players[myPlayerId];
+            
+            // 检查位置差异
+            const positionDiff = Math.sqrt(
+                Math.pow(serverTank.x - localTank.x, 2) + 
+                Math.pow(serverTank.y - localTank.y, 2)
+            );
+            
+            // 如果差异过大，进行校正
+            if (positionDiff > 5) {
+                console.log('位置校正:', positionDiff);
+                predictionSystem.corrections++;
+                
+                // 平滑校正而不是直接跳跃
+                gameState.players[myPlayerId].x = lerp(localTank.x, serverTank.x, 0.5);
+                gameState.players[myPlayerId].y = lerp(localTank.y, serverTank.y, 0.5);
+            }
+            
+            // 权威状态直接应用
+            gameState.players[myPlayerId].health = serverTank.health;
+            gameState.players[myPlayerId].score = serverTank.score;
+        }
+
+        // 线性插值函数
+        function lerp(a, b, t) {
+            return a + (b - a) * t;
+        }
+
+        // 发送输入到服务端
+        function sendInput() {
+            if (!ws || ws.readyState !== WebSocket.OPEN || !gameState.running) return;
+            
+            predictionSystem.inputSequence++;
+            
+            const inputMessage = {
+                type: 'input',
+                sequence: predictionSystem.inputSequence,
+                timestamp: Date.now(),
+                input: { ...inputState }
+            };
+            
+            // 记录输入历史
+            predictionSystem.inputHistory.push({
+                sequence: predictionSystem.inputSequence,
+                timestamp: Date.now(),
+                input: { ...inputState }
+            });
+            
+            // 保持历史记录在合理范围内
+            if (predictionSystem.inputHistory.length > 100) {
+                predictionSystem.inputHistory.splice(0, 50);
+            }
+            
+            // 记录待确认输入
+            predictionSystem.pendingInputs.set(predictionSystem.inputSequence, inputMessage);
+            
+            ws.send(JSON.stringify(inputMessage));
+        }
+
+        // 键盘输入处理
+        const keys = {};
+        
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            updateInputState();
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+            updateInputState();
+        });
+        
+        function updateInputState() {
+            const newInputState = {
+                forward: keys['KeyW'] || false,
+                backward: keys['KeyS'] || false,
+                turnLeft: keys['KeyA'] || false,
+                turnRight: keys['KeyD'] || false,
+                fire: keys['Space'] || false
+            };
+            
+            // 检查输入是否有变化
+            const inputChanged = Object.keys(newInputState).some(key => 
+                newInputState[key] !== inputState[key]
+            );
+            
+            inputState = newInputState;
+            
+            // 如果输入有变化，立即发送
+            if (inputChanged) {
+                sendInput();
+            }
+        }
+
+        // 更新连接状态显示
+        function updateConnectionStatus(state, text) {
+            connectionState = state;
+            const statusElement = document.getElementById('connectionStatus');
+            statusElement.textContent = text;
+            statusElement.className = `connection-status ${state}`;
+        }
+
+        // 更新UI
+        function updateUI() {
+            if (!gameState.players) return;
+            
+            const playerIds = Object.keys(gameState.players);
+            
+            playerIds.forEach((playerId, index) => {
+                const player = gameState.players[playerId];
+                const playerNum = index + 1;
+                
+                // 更新玩家名称
+                const nameElement = document.getElementById(`player${playerNum}Name`);
+                if (nameElement) {
+                    const isMe = playerId === myPlayerId;
+                    nameElement.textContent = isMe ? `玩家${playerNum} (你)` : `玩家${playerNum}`;
+                }
+                
+                // 更新血量条
+                const healthPercent = (player.health / CONFIG.MAX_HEALTH) * 100;
+                const healthBar = document.getElementById(`player${playerNum}Health`);
+                if (healthBar) {
+                    healthBar.style.width = healthPercent + '%';
+                    healthBar.className = healthPercent <= 30 ? 'health-fill low' : 'health-fill';
+                }
+                
+                // 更新得分
+                const scoreElement = document.getElementById(`player${playerNum}Score`);
+                if (scoreElement) {
+                    scoreElement.textContent = `得分: ${player.score}`;
+                }
+            });
+        }
+
+        // 更新调试信息
+        function updateDebugInfo() {
+            document.getElementById('latency').textContent = performanceMonitor.latency + ' ms';
+            document.getElementById('fps').textContent = performanceMonitor.fps;
+            document.getElementById('corrections').textContent = predictionSystem.corrections;
+            document.getElementById('inputSequence').textContent = predictionSystem.inputSequence;
+            document.getElementById('timeOffset').textContent = predictionSystem.serverTimeOffset + ' ms';
+        }
+
+        // 渲染函数
+        function render() {
+            // 清空画布
+            ctx.fillStyle = '#1a252f';
+            ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
+            
+            // 绘制网格背景
+            ctx.strokeStyle = '#2c3e50';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < CONFIG.CANVAS_WIDTH; x += 50) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, CONFIG.CANVAS_HEIGHT);
+                ctx.stroke();
+            }
+            for (let y = 0; y < CONFIG.CANVAS_HEIGHT; y += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(CONFIG.CANVAS_WIDTH, y);
+                ctx.stroke();
+            }
+
+            // 渲染坦克
+            Object.values(gameState.players).forEach(player => {
+                renderTank(player);
+            });
+            
+            // 渲染子弹
+            gameState.bullets.forEach(bullet => {
+                renderBullet(bullet);
+            });
+        }
+
+        // 渲染坦克
+        function renderTank(player) {
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            ctx.rotate(player.angle);
+
+            // 绘制坦克主体
+            ctx.fillStyle = player.color;
+            ctx.fillRect(-CONFIG.TANK_SIZE/2, -CONFIG.TANK_SIZE/2, CONFIG.TANK_SIZE, CONFIG.TANK_SIZE);
+            
+            // 绘制坦克边框
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(-CONFIG.TANK_SIZE/2, -CONFIG.TANK_SIZE/2, CONFIG.TANK_SIZE, CONFIG.TANK_SIZE);
+
+            // 绘制炮管
+            ctx.fillStyle = '#555555';
+            ctx.fillRect(0, -3, CONFIG.TANK_SIZE/2 + 5, 6);
+            
+            // 绘制方向指示器
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(CONFIG.TANK_SIZE/3, 0, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 如果是自己的坦克，添加特殊标识
+            if (player.id === myPlayerId) {
+                ctx.strokeStyle = '#ffff00';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(-CONFIG.TANK_SIZE/2 - 2, -CONFIG.TANK_SIZE/2 - 2, CONFIG.TANK_SIZE + 4, CONFIG.TANK_SIZE + 4);
+            }
+
+            ctx.restore();
+        }
+
+        // 渲染子弹
+        function renderBullet(bullet) {
+            ctx.fillStyle = '#ffff00';
+            ctx.beginPath();
+            ctx.arc(bullet.x, bullet.y, CONFIG.BULLET_SIZE, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // 游戏主循环
+        function gameLoop(currentTime) {
+            const deltaTime = currentTime - performanceMonitor.lastTime;
+            performanceMonitor.lastTime = currentTime;
+            
+            // 计算FPS
+            performanceMonitor.frameCount++;
+            if (performanceMonitor.frameCount % 60 === 0) {
+                performanceMonitor.fps = Math.round(1000 / (deltaTime || 1));
+            }
+
+            if (gameState.running) {
+                // 客户端预测
+                predictLocalState(inputState, deltaTime);
+                
+                // 定期发送输入（即使没有变化，也要保持心跳）
+                if (performanceMonitor.frameCount % 3 === 0) {
+                    sendInput();
+                }
+                
+                // 更新UI
+                updateUI();
+            }
+
+            // 渲染
+            if (CONFIG.CANVAS_WIDTH) {
+                render();
+            }
+            
+            // 更新调试信息
+            updateDebugInfo();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 定期发送ping测试延迟
+        setInterval(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'ping',
+                    clientTime: Date.now()
+                }));
+            }
+        }, 2000);
+
+        // 初始化
+        initWebSocket();
+    </script>
+</body>
+</html>

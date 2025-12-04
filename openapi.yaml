@@ -1,0 +1,264 @@
+openapi: 3.0.3
+info:
+  title: Snake Game Demo API
+  description: |
+    贪食蛇游戏演示项目的 API 规范，展示了网络游戏同步的不同实现方式：
+    - 状态同步：服务端计算游戏状态，客户端定时拉取
+    - 帧同步：客户端计算游戏状态，服务端同步操作事件
+    
+    本项目旨在使用纯 HTML5 实现网络游戏的同步方案，无需游戏引擎。
+  version: 1.0.0
+  contact:
+    name: Game Snake Demo
+    url: https://github.com/fangege/game-snake-demo
+  license:
+    name: ISC
+    
+servers:
+  - url: http://localhost:3000
+    description: 本地开发服务器
+
+paths:
+  /snake:
+    get:
+      summary: 获取游戏页面
+      description: 渲染贪食蛇游戏页面，支持双人游戏
+      parameters:
+        - name: player
+          in: query
+          required: true
+          description: 玩家标识
+          schema:
+            type: string
+            enum: [player1, player2]
+            example: player1
+      responses:
+        '200':
+          description: 成功返回游戏页面
+          content:
+            text/html:
+              schema:
+                type: string
+          headers:
+            Set-Cookie:
+              description: 设置玩家标识 Cookie
+              schema:
+                type: string
+                example: player=player1
+                
+  /event:
+    post:
+      summary: 发送游戏事件
+      description: |
+        处理游戏事件，包括：
+        - 开始游戏
+        - 结束游戏  
+        - 键盘操作（控制蛇的方向）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/StartGameEvent'
+                - $ref: '#/components/schemas/EndGameEvent'
+                - $ref: '#/components/schemas/KeyboardEvent'
+            examples:
+              start_game:
+                summary: 开始游戏
+                value:
+                  type: "start"
+              end_game:
+                summary: 结束游戏
+                value:
+                  type: "end"
+              keyboard_input:
+                summary: 键盘输入
+                value:
+                  type: "keyboard"
+                  key: "w"
+      responses:
+        '200':
+          description: 事件处理成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: {}
+                
+  /state:
+    post:
+      summary: 获取游戏状态
+      description: |
+        获取当前游戏状态或事件列表：
+        - 状态同步模式：返回完整的游戏状态
+        - 帧同步模式：返回指定回合之后的事件列表
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                turn:
+                  type: integer
+                  description: 帧同步模式下的回合数，用于获取增量事件
+                  example: 10
+      responses:
+        '200':
+          description: 成功返回游戏状态或事件列表
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/GameState'
+                  - $ref: '#/components/schemas/EventList'
+
+components:
+  schemas:
+    StartGameEvent:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: [start]
+          description: 事件类型
+          
+    EndGameEvent:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: [end]
+          description: 事件类型
+          
+    KeyboardEvent:
+      type: object
+      required:
+        - type
+        - key
+      properties:
+        type:
+          type: string
+          enum: [keyboard]
+          description: 事件类型
+        key:
+          type: string
+          enum: [w, s, a, d, ArrowUp, ArrowDown, ArrowLeft, ArrowRight]
+          description: |
+            按键：
+            - w/s/a/d: player1 控制键（上/下/左/右）
+            - ArrowUp/ArrowDown/ArrowLeft/ArrowRight: player2 控制键
+          example: "w"
+          
+    Position:
+      type: object
+      properties:
+        x:
+          type: integer
+          description: X 坐标
+          example: 100
+        y:
+          type: integer
+          description: Y 坐标
+          example: 200
+          
+    Player:
+      type: object
+      properties:
+        x:
+          type: integer
+          description: 蛇头 X 坐标
+          example: 0
+        y:
+          type: integer
+          description: 蛇头 Y 坐标
+          example: 0
+        speed:
+          type: integer
+          description: 移动速度
+          example: 10
+        direction:
+          type: string
+          enum: [UP, DOWN, LEFT, RIGHT]
+          description: 移动方向
+          example: "RIGHT"
+        tail:
+          type: array
+          items:
+            $ref: '#/components/schemas/Position'
+          description: 蛇身位置列表
+        score:
+          type: integer
+          description: 得分
+          example: 0
+          
+    Food:
+      type: object
+      properties:
+        x:
+          type: integer
+          description: 食物 X 坐标
+          example: 150
+        y:
+          type: integer
+          description: 食物 Y 坐标
+          example: 250
+          
+    GameState:
+      type: object
+      description: 状态同步模式下的完整游戏状态
+      properties:
+        player1:
+          $ref: '#/components/schemas/Player'
+        player2:
+          $ref: '#/components/schemas/Player'
+        food:
+          $ref: '#/components/schemas/Food'
+        gameStartTime:
+          type: integer
+          description: 游戏开始时间戳
+          example: 1638360000000
+        turn:
+          type: integer
+          description: 当前回合数
+          example: 15
+          
+    GameEvent:
+      type: object
+      properties:
+        turn:
+          type: integer
+          description: 回合数
+          example: 12
+        event:
+          type: object
+          description: 该回合的玩家事件
+          additionalProperties:
+            $ref: '#/components/schemas/KeyboardEvent'
+        gameTime:
+          type: integer
+          description: 游戏时间（毫秒）
+          example: 6000
+          
+    EventList:
+      type: object
+      description: 帧同步模式下的事件列表
+      properties:
+        result:
+          type: array
+          items:
+            $ref: '#/components/schemas/GameEvent'
+          description: 事件列表
+
+tags:
+  - name: Game
+    description: 游戏相关接口
+  - name: State Sync
+    description: 状态同步模式
+  - name: Frame Sync
+    description: 帧同步模式
